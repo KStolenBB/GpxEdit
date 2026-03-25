@@ -23,6 +23,12 @@
 - Changes are not considered complete until relevant automated tests (unit/integration/frontend) pass.
 - Detailed test inventory and execution order are maintained in `plan/TEST_PLAN.md`.
 
+## Delivery tiers
+
+- `MVP` means the minimum first-edition slice required for a usable release candidate: auth (`register/login/logout/me/update profile`), dashboard route list, GPX import, route editor, manual save, save/conflict recovery, and GPX export.
+- `Hardening track` means planned follow-up work on the same version line before broader rollout: breached-password checks, password reset/account recovery, auth and mutation rate limiting, periodic session-expiry warning banner, place-name search, orthophoto toggle, self-serve account deletion/data export, and advanced metrics/alerts/runbooks.
+- `plan/IMPLEMENTATION_PLAN.md` sequences MVP delivery first; hardening items land only after the MVP contracts are stable and tested.
+
 ---
 
 ## Data Model
@@ -147,9 +153,10 @@ Notes:
   the frontend `.env` and `ELEVATION_THRESHOLD_M` in the backend `.env`. Both
   must match. The canonical value is documented in `.env.example` for both
   projects.
-- The frontend live-distance figure is explicitly labelled as an estimate in the
-  UI (e.g. "~12.4 km"). The backend-computed value shown after save is the
-  authoritative figure and displayed without qualification.
+- The frontend live-distance and live-duration figures are explicitly labelled
+  as estimates in the UI (e.g. `~12.4 km`, `~2h 28m`). The backend-computed
+  `distance_m` and `estimated_duration_min` shown after save are the
+  authoritative values and displayed without qualification.
 
 ### Editing model
 - The first edition treats each saved route as a single ordered polyline made of
@@ -176,9 +183,10 @@ Notes:
 
 ### Auth and security notes
 - Passwords are hashed with Argon2 or bcrypt, never stored in plain text.
-- Password policy is enforced server-side: minimum length 12, reject known weak/
-  breached passwords, and reject passwords that trivially contain the user's
-  email/name.
+- Password policy is enforced server-side in MVP: minimum length 12 and reject
+  passwords that trivially contain the user's email/name.
+- Hardening track: reject known weak/breached passwords via an explicit
+  validation hook or provider.
 - Auth cookies should use `HttpOnly`, `Secure` in production, and `SameSite=Lax`
   by default.
 - State-changing requests are protected against CSRF by `SameSite=Lax` cookies
@@ -188,14 +196,14 @@ Notes:
   frontend origin.
 - If deployment changes to cross-origin or cross-site auth flows, a dedicated
   CSRF token mechanism becomes mandatory before release.
-- Login endpoints should have basic rate limiting to reduce brute-force risk.
-- Account recovery is part of the first-edition security baseline: password reset
-  uses
-  single-use, short-TTL tokens with one-time redemption and rate-limited request
-  endpoints. Reset tokens are stored hashed at rest, compared in constant time,
-  and invalidated immediately after successful use. Whether email verification is
-  required before first login is a deploy-time policy toggle that must be
-  explicit in environment config.
+- Hardening track: login endpoints should have basic rate limiting to reduce
+  brute-force risk.
+- Hardening track: account recovery uses single-use, short-TTL password reset
+  tokens with one-time redemption and rate-limited request endpoints. Reset
+  tokens are stored hashed at rest, compared in constant time, and invalidated
+  immediately after successful use. Whether email verification is required
+  before first login is a deploy-time policy toggle that must be explicit in
+  environment config.
 - CORS should allow only the local React dev origin in development and the
   deployed frontend origin in production.
 
@@ -214,7 +222,7 @@ Notes:
 - JWT signing keys/secrets follow a rotation policy (documented runbook,
   environment-based secret source, staged rollover without downtime).
 
-### Production security baseline
+### Production security baseline (hardening track after MVP)
 - Cookie attribute policy is explicit per environment (`Secure`, `SameSite`,
   `Domain`, `Path`, `Max-Age`) and documented in backend `.env.example`.
 - If TLS is terminated at a reverse proxy/load balancer, backend trusted-proxy
@@ -240,11 +248,11 @@ Notes:
   editor state intact while the user re-authenticates.
 - After successful re-authentication, the frontend automatically retries the
   interrupted save request once so the user does not have to repeat the action.
-- Additionally, the frontend should periodically check session validity (e.g.
-  every 10 minutes via `GET /auth/me`) and warn the user with a banner if their
-  session is about to expire, prompting them to save before it does.
+- Hardening track: the frontend should periodically check session validity
+  (e.g. every 10 minutes via `GET /auth/me`) and warn the user with a banner if
+  their session is about to expire, prompting them to save before it does.
 
-### API abuse protection and limits
+### API abuse protection and limits (hardening track)
 - Login endpoint is rate limited per IP and per account identifier (email) with
   temporary lockout/backoff after repeated failures.
 - Route mutation endpoints (`POST/PUT/DELETE`) are rate limited per user to
@@ -282,8 +290,8 @@ Notes:
 - Idempotency policy:
   - `PUT` route metadata and points are idempotent for the same `(route_id,
     version, payload)` tuple.
-  - `POST /routes` and `POST /routes/import-gpx` accept an optional
-    `Idempotency-Key` header to deduplicate client retries.
+  - Hardening track: `POST /routes` and `POST /routes/import-gpx` may accept an
+    optional `Idempotency-Key` header to deduplicate client retries.
 - When the frontend receives a `409 Conflict`, it should show a modal informing
   the user that the route was modified elsewhere, offering two options: "Reload
   latest" (discards local changes and fetches the current version) or "Force
@@ -291,6 +299,11 @@ Notes:
   the user's current local payload). If another conflict occurs, keep local
   edits and ask the user to reload or retry; do not loop automatically. No
   diff/merge UI in the first edition.
+- The force-save retry contract is explicit: after refetching the latest route,
+  the client retries the same `PUT` request with the newly fetched `version`
+  plus `overwrite_intent=true` in the request body. The overwrite-intent flag
+  does not bypass version checks; if that retry is stale again, the backend
+  returns `409 Conflict` again.
 - If route length or edit volume later becomes a performance problem, this can be
   evolved into incremental point operations in a future edition without changing
   the core data model.
@@ -356,7 +369,10 @@ Notes:
 
 ### Unsaved state recovery
 - The frontend periodically persists the current editor state (points, metadata,
-  dirty flag) to `localStorage` keyed by route ID.
+  dirty flag) to IndexedDB keyed by route ID so large routes do not hit
+  `localStorage` quota limits.
+- `localStorage` may store only a lightweight recovery marker/timestamp used to
+  decide whether a draft-restore check is needed on route load.
 - On loading a route in the editor, if a newer local draft exists than the
   server version, the user is prompted: "You have unsaved changes from a previous
   session. Restore or discard?"
@@ -420,7 +436,7 @@ Notes:
 - `/settings`        — user profile and default speed settings
 
 ### Editor features (first edition)
-- Kartverket WMTS topo map as base layer (+ orthophoto toggle)
+- Kartverket WMTS topo map as base layer
 - Add / move / delete route points on the map
 - Draw new track segments click-by-click (manual placement only; no path snapping
   in the first edition — the UI should make freeform drawing obvious to avoid user confusion)
@@ -430,12 +446,15 @@ Notes:
   closed or a new route is loaded)
 - Edit track metadata (name, description, estimated speed)
 - Live distance and estimated duration preview in the editor, computed locally in
-  `editorStore` as points are added or moved (does not require a save)
+  `editorStore` as points are added or moved; both remain explicitly marked as
+  estimates until the next successful save
 - Elevation profile chart below the map (with visual indication of missing/partial data)
-- Route statistics displayed (distance, elevation gain, estimated duration — marked
-  partial if elevation coverage is incomplete; elevation gain and duration update
-  only after save, distance updates live)
-- Place name search (Kartverket Stedsnavn API) to navigate the map
+- Route statistics displayed (backend-authoritative distance, elevation gain,
+  estimated duration after save; elevation gain is marked partial if elevation
+  coverage is incomplete, while distance and duration previews keep updating
+  live between saves)
+- Hardening track: place name search (Kartverket Stedsnavn API) to navigate the map
+- Hardening track: orthophoto base-layer toggle
 - Download track as GPX
 
 ### Frontend state management
@@ -482,6 +501,10 @@ Notes:
   route editor, manual save, and GPX export.
 - If delivery risk or schedule pressure rises, the first deferrable features are:
   `/settings`, orthophoto toggle, and place-name search.
+- Hardening-track items after MVP are: breached-password checks, password
+  reset/account recovery, auth/mutation rate limiting, periodic session-expiry
+  warning banner, self-serve account deletion/data export, and advanced
+  observability/backup runbooks.
 - If Stedsnavn place search is deferred, the editor must provide a "Go to
   coordinates" input (lat/lon) so users can navigate to a specific area without
   manually panning across the entire map.
@@ -562,7 +585,7 @@ For integrating with `react-leaflet` using standard XYZ `TileLayer` components, 
 ### Quick start (local dev)
 ```bash
 # Start Postgres
-docker run --name gpxedit-db -e POSTGRES_PASSWORD=secret -e POSTGRES_DB=gpxedit -p 5432:5432 -d postgres:18.3
+docker run --name gpxedit-db -e POSTGRES_PASSWORD=secret -e POSTGRES_DB=gpxedit -p 5432:5432 -d postgis/postgis:18-3.5
 
 # Backend
 cd backend
@@ -589,9 +612,9 @@ npm run dev
   deletion of owned routes/points (`ON DELETE CASCADE`).
 - Production logging must avoid sensitive payload capture (passwords, raw auth
   tokens, full JWTs, and full GPX file contents).
-- Data export requests (user-owned routes and profile metadata) and account
-  deletion requests are handled through authenticated endpoints and auditable log
-  events.
+- Hardening track: self-serve data export requests (user-owned routes and
+  profile metadata) and account deletion requests are handled through
+  authenticated endpoints and auditable log events.
 - Retention windows for auth/security logs and deleted-account tombstones are
   documented per environment and reviewed before launch.
 
@@ -622,6 +645,10 @@ npm run dev
   used.
 
 ### Scope vs environment definitions
+- `MVP` means the minimum first-edition feature slice required for a usable
+  release candidate.
+- `hardening track` means planned follow-up work on the same version line before
+  broader production rollout.
 - `first edition` means feature scope/contract, not environment. The first
   edition scope is expected to run in production after passing staging and
   release checks.
@@ -633,7 +660,7 @@ npm run dev
   first edition across all environments (including production), not just
   postponed in development.
 
-### Backup and restore expectations
+### Backup and restore expectations (hardening track)
 - Production Postgres uses scheduled automated backups with a documented
   retention policy.
 - At least one periodic restore drill is executed in a non-production
@@ -668,11 +695,10 @@ npm run dev
   import failures, and auth events.
 - No external log aggregation in the first edition — logs go to stdout for local
   development and container-level capture.
-- Minimal first-edition metrics are required (via app metrics endpoint or
-  platform metrics):
+- Hardening track adds app/platform metrics for:
   request latency, error rate, save duration, GPX import duration/failure rate,
   elevation enrichment timeout/partial rate, and auth/login failure rate.
-- Basic alerts should be configured for sustained 5xx spikes, unusually high
+- Hardening track adds alerts for sustained 5xx spikes, unusually high
   save/import failures, and elevation service timeout bursts.
 
 ---

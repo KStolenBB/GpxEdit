@@ -31,7 +31,13 @@ The repository is currently in planning-first mode. Core architecture, implement
 Start the PostGIS container:
 
 ```bash
-docker run --name gpxedit-db -e POSTGRES_PASSWORD=secret -e POSTGRES_DB=gpxedit -p 5432:5432 -d postgres:18.3
+docker run --name gpxedit-db -e POSTGRES_PASSWORD=secret -e POSTGRES_DB=gpxedit -p 5432:5432 -d postgis/postgis:18-3.5
+```
+
+Or use the helper script:
+
+```bash
+bash scripts/start-postgres-docker.sh
 ```
 
 *(Note: Use `scripts/install-docker-ubuntu.sh` if you need to install Docker on Ubuntu).*

@@ -2,6 +2,9 @@
 
 This implementation plan is aligned with `plan/PLAN.md` and `AGENTS.md`. It is organized as phased TDD work with explicit acceptance criteria so first-edition scope can be verified, not inferred.
 
+- Phases 1-7 deliver the MVP slice first.
+- Phase 8 is the optional hardening track from `plan/PLAN.md`.
+
 ## Phase 1: Scaffolding, Configuration, and Test Harness
 - Infrastructure: start PostgreSQL + PostGIS Docker container and document local bootstrap commands.
 - Backend setup: create `backend/` service skeleton, install runtime + dev dependencies, configure settings loader, and set up `pytest` with DB fixtures.
@@ -24,20 +27,19 @@ Acceptance criteria:
 
 ## Phase 3: Auth, Session, and Security Baseline (TDD)
 - Backend tests first for endpoints: `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `PUT /auth/me`.
-- Add tests for password policy (minimum length, weak/breached rejection hook, email/name similarity checks), cookie attributes, and invalid credential handling.
+- Add tests for password policy (minimum length and email/name similarity checks), cookie attributes, and invalid credential handling.
 - Implement JWT cookie session with configured algorithm/expiry claims and explicit auth error codes.
-- Implement login rate limiting and password reset/account recovery flow (request + redeem, hashed token storage, single-use and TTL).
 - Frontend tests for auth screens and stores, including session presence state and auth error handling.
 
 Acceptance criteria:
 - Auth API contract is covered by tests, including user profile update.
-- Login hardening and recovery flow exist and are validated with targeted tests.
+- MVP auth/session behavior is covered by targeted tests and ready for editor flows.
 
 ## Phase 4: Route API Contracts and Save Pipeline (TDD)
 - Backend tests first for route endpoints: list/create/read/update/delete, `PUT /routes/{id}/points`, import/export.
 - Add ownership tests that assert `404` for non-owned routes.
 - Add optimistic concurrency tests for versioned writes and `409 ROUTE_VERSION_CONFLICT` payload with `current_version`.
-- Add idempotency-key tests for `POST /routes` and `POST /routes/import-gpx` retry scenarios.
+- Add conflict retry tests for the explicit `overwrite_intent=true` force-save contract after refetch.
 - Add validation tests: coordinate ranges, NaN/Infinity rejection, 6-decimal normalization, file/body size and point-count limits.
 - Add save-pipeline tests: replace-all points in one transaction, ignore incoming elevations on editor save, elevation enrichment cap/sampling, and partial metadata (`elevation_is_partial`, coverage ratio).
 - Add route stat tests: Haversine distance, thresholded elevation gain, estimated duration speed precedence.
@@ -67,17 +69,28 @@ Acceptance criteria:
 - Manual save is explicit and unsaved state is visible.
 
 ## Phase 7: Frontend Recovery, Conflict UX, and Integrations (TDD)
-- Tests first for periodic local draft persistence (`localStorage`) keyed by route ID, restore/discard prompt, and clear-on-save behavior.
+- Tests first for periodic draft persistence (IndexedDB + lightweight recovery marker) keyed by route ID, restore/discard prompt, and clear-on-save behavior.
 - Implement 401-on-save in-place re-auth modal that preserves editor state and retries interrupted save exactly once after successful re-auth.
 - Implement 409 conflict modal flow (reload latest vs force-save retry-once).
 - Implement elevation profile with explicit visual treatment for interpolated/missing spans and non-color cues.
-- Implement place-name search integration and map tile failure overlay.
+- Implement map tile failure overlay.
 
 Acceptance criteria:
 - Session expiry and conflict paths are recoverable without silent data loss.
 - Partial elevation data is clearly communicated in UI.
 
-## Phase 8: Final Validation and CI Readiness
+## Phase 8: Hardening Track (Optional Before Broader Rollout)
+- Add breached-password rejection hook/provider coverage.
+- Implement password reset/account recovery request + redeem flow.
+- Add login and route-mutation rate limiting.
+- Add periodic session-expiry warning banner.
+- Add place-name search, orthophoto toggle, and optional `Idempotency-Key` support.
+- Add self-serve account deletion/data-export endpoints and advanced metrics/alerts/runbooks.
+
+Acceptance criteria:
+- Any hardening-track feature pulled into scope ships with targeted tests and updated docs.
+
+## Phase 9: Final Validation and CI Readiness
 - Run full backend/frontend tests and targeted regression tests for concurrency, import limits, and save recovery flows.
 - Run quality gates: `ruff check .`, `ruff format --check .` (or formatter command in use), `mypy .`, frontend lint/typecheck/test scripts.
 - Perform manual verification checklist for first-edition critical paths (auth lifecycle, route CRUD, import/edit/save/export).

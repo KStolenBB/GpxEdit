@@ -5,8 +5,10 @@ Follow these rules unless the user explicitly asks for something different.
 
 ## Repository Snapshot
 
-- Current checked-in files are minimal: `plan/PLAN.md` and `scripts/install-docker-ubuntu.sh`.
-- `plan/PLAN.md` defines the intended architecture and conventions.
+- Current checked-in planning docs are `plan/PLAN.md`, `plan/TEST_PLAN.md`, and `plan/IMPLEMENTATION_PLAN.md`.
+- `plan/PLAN.md` defines the intended architecture and product contract.
+- `plan/TEST_PLAN.md` defines the MVP-first TDD inventory.
+- `plan/IMPLEMENTATION_PLAN.md` defines the phased delivery sequence.
 - Planned stack: React + TypeScript frontend, FastAPI backend, PostgreSQL/PostGIS, Alembic, pytest, Vitest.
 
 ## Rule Sources Checked
@@ -21,7 +23,9 @@ Follow these rules unless the user explicitly asks for something different.
 - Prefer small, focused edits over broad rewrites.
 - Preserve existing file patterns and naming.
 - Avoid introducing new dependencies without clear need.
-- Keep plans and contracts in `plan/PLAN.md` as source of truth.
+- Keep product contracts in `plan/PLAN.md` as source of truth.
+- Use `plan/TEST_PLAN.md` for MVP test inventory and `plan/IMPLEMENTATION_PLAN.md` for sequencing.
+- Treat `MVP` work as the default delivery target unless the user explicitly asks for hardening-track scope.
 
 ## Environment and Setup Commands
 
@@ -31,7 +35,7 @@ Use these commands when corresponding folders exist.
 
 - Install Docker on Ubuntu: `sudo bash scripts/install-docker-ubuntu.sh`
 - Start DB container:
-  - `docker run --name gpxedit-db -e POSTGRES_PASSWORD=secret -e POSTGRES_DB=gpxedit -p 5432:5432 -d postgres:18.3`
+  - `docker run --name gpxedit-db -e POSTGRES_PASSWORD=secret -e POSTGRES_DB=gpxedit -p 5432:5432 -d postgis/postgis:18-3.5`
 
 ### Backend (FastAPI)
 

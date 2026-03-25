@@ -5,7 +5,7 @@ CONTAINER_NAME="${CONTAINER_NAME:-gpxedit-db}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-secret}"
 POSTGRES_DB="${POSTGRES_DB:-gpxedit}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
-POSTGRES_IMAGE="${POSTGRES_IMAGE:-postgres:18.3}"
+POSTGRES_IMAGE="${POSTGRES_IMAGE:-postgis/postgis:18-3.5}"
 POSTGRES_VOLUME="${POSTGRES_VOLUME:-gpxedit-db-data}"
 
 if ! command -v docker >/dev/null 2>&1; then

@@ -4,6 +4,10 @@ This document defines the executable test inventory for first-edition scope.
 `plan/PLAN.md` remains the high-level product and architecture contract; this
 file is the implementation-focused TDD companion.
 
+- This file tracks the MVP-first test inventory.
+- Hardening-track features from `plan/PLAN.md` get dedicated tests only when
+  they are pulled into the active delivery scope.
+
 ## TDD Workflow
 
 - For each feature/bug: write a failing test first, implement minimal code to
@@ -26,13 +30,15 @@ file is the implementation-focused TDD companion.
 
 - Auth: register, login (httpOnly cookie set), logout (cookie cleared), `GET
   /auth/me`, `PUT /auth/me` profile updates.
-- Password policy checks: minimum length, weak/breached rejection,
-  email/name-derived rejection.
+- Password policy checks: minimum length and email/name-derived rejection.
 - Route ownership: cross-user access returns `404`, never `403`.
 - Route listing excludes points and is ordered by `updated_at` descending.
 - `PUT /routes/{id}` and `PUT /routes/{id}/points` enforce optimistic
   concurrency; stale writes return `409` with `ROUTE_VERSION_CONFLICT` and
   `current_version`.
+- Conflict retry contract: retrying after a refetch with the latest `version`
+  and `overwrite_intent=true` succeeds; repeating the retry with a stale version
+  still returns `409`.
 - Error envelope consistency: `error.code`, `error.message`, optional
   `error.details`, `request_id`.
 
@@ -66,7 +72,7 @@ file is the implementation-focused TDD companion.
 - `editorStore` add/move/delete updates points, dirty state, and derived live
   distance.
 - Undo/redo stack behavior for add/move/delete and save checkpoint semantics.
-- Local draft persistence/restore prompt logic keyed by route ID.
+- IndexedDB draft persistence/restore prompt logic keyed by route ID.
 - 409 conflict handling flow keeps local edits and presents retry/reload options.
 - 401 on save triggers in-place re-auth flow and retries one interrupted save.
 
@@ -89,12 +95,25 @@ file is the implementation-focused TDD companion.
   - elevation gain threshold behavior.
 - CI gate fails when contract fixtures diverge across stacks.
 
+## Hardening-Track Tests (when scheduled)
+
+- Breached-password rejection and password-reset request/redeem flow.
+- Login and route-mutation rate limiting behavior.
+- Periodic session-expiry warning banner behavior.
+- Optional `Idempotency-Key` support for `POST /routes` and
+  `POST /routes/import-gpx`.
+- Self-serve account deletion/data-export endpoint coverage.
+
 ## Manual Verification Checklist
 
-- Validate Kartverket topo and orthophoto tile loading and attribution display.
-- Validate Stedsnavn search relevance and debounce behavior.
+- Validate Kartverket topo tile loading and attribution display.
 - Validate elevation lookup behavior against a known sample route.
 - Validate GPX import/export round-trip with real-world files.
+
+## Hardening-Track Manual Verification (when scheduled)
+
+- Validate orthophoto tile loading and layer toggle behavior.
+- Validate Stedsnavn search relevance and debounce behavior.
 
 ## Execution Order (First Edition)
 
