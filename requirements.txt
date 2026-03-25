@@ -1,0 +1,15 @@
+fastapi==0.135.2
+uvicorn[standard]==0.42.0
+pydantic==2.12.5
+pydantic-settings==2.13.1
+sqlalchemy==2.0.48
+geoalchemy2==0.18.4
+alembic==1.18.4
+psycopg[binary]==3.3.3
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+argon2-cffi==25.1.0
+python-multipart==0.0.22
+email-validator==2.3.0
+gpxpy==1.6.2
+httpx==0.28.1

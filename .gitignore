@@ -1,0 +1,75 @@
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE folders
+.idea/
+.vscode/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python backend
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.python-version
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Node/frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.pnpm-store/
+.yarn/
+.next/
+.nuxt/
+.parcel-cache/
+coverage/
+*.tsbuildinfo
+
+# Frontend build outputs
+frontend/dist/
+frontend/.vite/
+
+# Backend build/cache outputs
+backend/.mypy_cache/
+backend/.pytest_cache/
+backend/.ruff_cache/
+backend/htmlcov/
+
+# Test artifacts
+.tox/
+.nox/
+
+# Database / local runtime artifacts
+*.sqlite3
+*.db
+
+# Logs
+*.log
+logs/
+
+# Docker local overrides
+docker-compose.override.yml
